@@ -1,30 +1,47 @@
 #!/bin/bash
 # Apply ddc_manifest.yaml to create the needed Deployment and Service
 
-kubectl -n big apply -f https://raw.githubusercontent.com/xavierBizoux/ddc-container/master/manifest/ddc_manifest.yaml
+kubectl -n viyademo apply -f https://raw.githubusercontent.com/xavierBizoux/ddc-container/master/manifest/ddc_manifest.yaml
 
 # Create a manifest to define the Ingress resource
 cat << EOF > /tmp/ddc-ingress.yaml
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ddc-ingress
-  annotations:
-    kubernetes.io/ingress.class: nginx
+  namespace: viyademo
 spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+      - viya4.frasep.com
+      - '*.viya4.frasep.com'
   rules:
-    - host: big.$(hostname -f)
+    - host: viya4.frasep.com
       http:
         paths:
-          - backend:
-              serviceName: ddc-service
-              servicePort: 3000
-            path: /ddc
+          - path: /ddc(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: ddc-service
+                port:
+                  number: 3000
+    - host: '*.viya4.frasep.com'
+      http:
+        paths:
+          - path: /ddc(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: ddc-service
+                port:
+                  number: 3000
 EOF
 
 # Apply the newly yaml file
-kubectl apply -f /tmp/ddc-ingress.yaml -n big
+kubectl apply -f /tmp/ddc-ingress.yaml -n viyademo
 
 # Print the URL of the web application
-printf "URL for DDC ingress: http://big.$(hostname -f)/ddc \n"
+printf "URL for DDC ingress: http://viya4.frasep.com/ddc \n"
